@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
-use crate::constants::{ASKS_SEEDS, BIDS_SEED, EMPTY_INDEX, MAX_EVENTS, POSITION_SEED};
-use crate::state::{ Event, EventQueue, EventType, Market, MarketStatus, Orderside, Slab, SlabNode, TraderPosition};
+use crate::constants::{ASKS_SEEDS, BIDS_SEED, EMPTY_INDEX, MAX_EVENTS, MAX_ORDER_PER_TRADER, POSITION_SEED};
+use crate::state::{ Event, EventQueue, EventType, Market, MarketStatus, Orderside, Slab, TraderPosition};
 use crate::error::MarketError;
-use crate::utils::{find_matching_node, free_a_node};
+use crate::utils::{allocate_node, find_matching_node, free_a_node, slab_insert_node};
 
 #[derive(Debug , AnchorSerialize ,AnchorDeserialize , Clone )]
 
@@ -49,10 +49,9 @@ pub struct PlaceLimitOrder<'info>{
 }
 
 pub fn place_limit_order_handler(ctx:Context<PlaceLimitOrder> , params: PlaceLimitOrderParams) -> Result<()>{
-    let trader_position = &mut ctx.accounts.trader_postion;
     let market = &mut ctx.accounts.market;
 
-    let queue = &mut ctx.accounts.event_queue;
+    
 
 
     require!(market.status == MarketStatus::Open , MarketError::MarketNotOpen);
@@ -116,9 +115,42 @@ pub fn place_limit_order_handler(ctx:Context<PlaceLimitOrder> , params: PlaceLim
     }
 
     if left_qty > 0 {
-        let target_slab = match params.orderside { Orderside::Buy => &mut ctx.accounts.bids , Orderside::Sell => &mut ctx.accounts.asks};
-        
-    }
+        let target_slab = match params.orderside { 
+            Orderside::Buy => &mut ctx.accounts.bids , 
+            Orderside::Sell => &mut ctx.accounts.asks
+            };
+        let index = allocate_node(target_slab)?;
+        let node =  &mut target_slab.nodes[index as usize];
+        node.key = price_key;
+        node.owner = ctx.accounts.trader_postion.key();
+        node.quantity = left_qty;
+        node.order_id = Clock::get()?.slot as u64;
+        node.time_stamp = now;
+        node.occupied = true;
+        node.next = EMPTY_INDEX;
+        node.prev = EMPTY_INDEX;
+
+        let order_id = node.order_id;
+
+        slab_insert_node( target_slab , index)?;
+
+        let trader_position = &mut ctx.accounts.trader_postion;
+        let mut free_slot :Option<usize> = None;
+        for i in 1..MAX_ORDER_PER_TRADER {
+            let bit = (trader_position.slots_bitmap << i) & 1u128;
+            if bit == 0 {
+                free_slot = Some(i);
+                break
+            }
+        }
+
+        if free_slot.is_none() { return  Err(MarketError::MaxOrderReached.into()); }
+        let i = free_slot.unwrap();
+
+        trader_position.slots_bitmap |= 1u128 << i;
+        trader_position.active_orders.checked_add(1).ok_or(MarketError::MathError)?;
+        trader_position.order_ids[i] = order_id;
+    }   
 
 
     Ok(())
