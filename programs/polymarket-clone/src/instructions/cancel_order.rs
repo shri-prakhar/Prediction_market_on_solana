@@ -59,7 +59,7 @@ pub fn cancle_order_handler(ctx:Context<CancelOrder> , params: CancelOrderParams
         while index != EMPTY_INDEX {
             let n = slab.nodes[index as usize];
             if n.occupied && n.order_id == params.order_id {
-                let prev = n.prev;
+                let prev = n.prev;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
                 let next = n.next;
 
                 if prev != EMPTY_INDEX{
