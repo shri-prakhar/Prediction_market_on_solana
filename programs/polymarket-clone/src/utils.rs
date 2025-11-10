@@ -20,7 +20,7 @@ pub fn find_best_node_index(slab: &mut Slab) -> Result<i32> {
     Ok(slab.head_index)
 }
 
-pub fn allocate_free_node(slab : &mut Slab ) -> Result<i32> {
+pub fn allocate_node(slab : &mut Slab ) -> Result<i32> {
     if slab.free_head != EMPTY_INDEX {
         let index = slab.free_head;
         let node = &mut slab.nodes[index as usize];

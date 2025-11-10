@@ -1,20 +1,20 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{token::{Burn, Transfer, burn, transfer}, token_interface::{Mint, TokenAccount, TokenInterface}};
 
-use crate::state::{Market, Vault};
+use crate::{constants::{MARKET_SEED , VAULT_SEED}, state::{Market, Vault}};
 
 
 
 #[derive(Accounts)]
-
+#[instruction(params: MergeTokensParams)]
 pub struct MergeTokens<'info>{
     #[account(mut)]
     pub trader: Signer<'info>,
 
-    #[account(mut)]
+    #[account(mut , seeds=[MARKET_SEED , &params.market_id.to_le_bytes()] , bump)]
     pub market : Account<'info , Market>,
 
-    #[account(mut)]
+    #[account(mut , seeds = [VAULT_SEED , &params.market_id.to_le_bytes()] , bump)]
     pub vault : Account<'info, Vault>,
     
     #[account(mut)]
@@ -34,7 +34,15 @@ pub struct MergeTokens<'info>{
     
 }
 
-pub fn merge_tokens_handler(ctx: Context<MergeTokens> , amount : u64) -> Result<()>{
+#[repr(C)]
+#[derive(AnchorDeserialize ,AnchorSerialize , Debug ,Clone)]
+
+pub struct MergeTokensParams{
+    amount: u64,
+    market_id : u64
+}
+
+pub fn merge_tokens_handler(ctx: Context<MergeTokens> , params: MergeTokensParams) -> Result<()>{
     
     let burn_yes = Burn{
         from: ctx.accounts.trader_yes.to_account_info(),
@@ -42,7 +50,7 @@ pub fn merge_tokens_handler(ctx: Context<MergeTokens> , amount : u64) -> Result<
         authority:ctx.accounts.trader.to_account_info()
     };
 
-    burn(CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_yes), amount)?;
+    burn(CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_yes), params.amount)?;
 
     let burn_no = Burn{
         from:ctx.accounts.trader_no.to_account_info(),
@@ -50,7 +58,7 @@ pub fn merge_tokens_handler(ctx: Context<MergeTokens> , amount : u64) -> Result<
         authority: ctx.accounts.trader.to_account_info()
     };
 
-    burn(CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_no), amount)?;
+    burn(CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_no), params.amount)?;
 
     let transfer_usdc = Transfer{
         from: ctx.accounts.vault.to_account_info(),
@@ -58,7 +66,7 @@ pub fn merge_tokens_handler(ctx: Context<MergeTokens> , amount : u64) -> Result<
         authority: ctx.accounts.vault.to_account_info(),
     };
 
-    transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_usdc), amount)?;
+    transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_usdc), params.amount)?;
 
     
     Ok(())

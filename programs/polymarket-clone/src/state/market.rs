@@ -26,7 +26,7 @@ pub enum MarketStatus{
 
 #[account]
 pub struct Market {
-    pub market_id: String ,
+    pub market_id: u64 ,
     pub creator: Pubkey,
     pub question: String,
     pub description : String ,

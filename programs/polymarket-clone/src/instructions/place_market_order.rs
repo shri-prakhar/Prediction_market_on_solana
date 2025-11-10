@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{token::{Transfer, transfer}, token_interface::{TokenAccount, TokenInterface}};
 
-use crate::state::{Market, OutcomePool, OutcomeSide, Vault};
+use crate::{constants::{MARKET_SEED , VAULT_SEED , OUTCOME_POOL_SEED}, state::{Market, OutcomePool, OutcomeSide, Vault}};
 
 #[derive(Accounts)]
-
+#[instruction(params: MarketOrderParams)]
 pub struct PlaceMarketOrder<'info>{
     #[account(mut)]
     pub trader : Signer<'info>,
@@ -18,13 +18,13 @@ pub struct PlaceMarketOrder<'info>{
     #[account(mut)]
     pub trader_no : InterfaceAccount<'info , TokenAccount>,
 
-    #[account(mut)]
+    #[account(mut , seeds = [MARKET_SEED , &params.market_id.to_le_bytes()] , bump)]
     pub market: Account<'info , Market>,
 
-    #[account(mut)]
+    #[account(mut , seeds = [VAULT_SEED , &params.market_id.to_le_bytes()] , bump)]
     pub vault : Account<'info , Vault>,
 
-    #[account(mut)]
+    #[account(mut , seeds = [OUTCOME_POOL_SEED , &params.market_id.to_le_bytes()] , bump)]
     pub outcome_pool : Account<'info , OutcomePool>,
 
     pub token_program: Interface<'info , TokenInterface>,
@@ -36,6 +36,7 @@ pub struct PlaceMarketOrder<'info>{
 pub struct MarketOrderParams{
     side : OutcomeSide,
     amount : u64,
+    market_id : u64
 }
 
 

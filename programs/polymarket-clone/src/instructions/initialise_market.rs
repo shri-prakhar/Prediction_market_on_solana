@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{ token_interface::{Mint, TokenInterface}};
 
-use crate::{constants::{MARKET_SEED, OUTCOME_POOL_SEED, VAULT_SEED , EVRNT_QUEUE_SEED}, state::{EventQueue, Market, OutcomePool, Vault}};
+use crate::{constants::{EVRNT_QUEUE_SEED, MARKET_SEED, OUTCOME_POOL_SEED, VAULT_SEED , BIDS_SEED, ASKS_SEEDS}, state::{EventQueue, Market, OutcomePool, Slab, Vault}};
 
 
 #[derive(Accounts)]
@@ -13,7 +13,7 @@ pub struct InitializeMarket<'info>{
     #[account(
         init,
         payer = admin,
-        seeds = [MARKET_SEED , params.market_id.as_bytes()],
+        seeds = [MARKET_SEED , &params.market_id.to_le_bytes()],
         bump,
         space = 8 + std::mem::size_of::<Market>()
     )]
@@ -22,7 +22,7 @@ pub struct InitializeMarket<'info>{
     #[account(
         init ,
         payer = admin,
-        seeds = [VAULT_SEED , params.market_id.as_bytes()],
+        seeds = [VAULT_SEED , &params.market_id.to_le_bytes()],
         bump,
         space = 8 + std::mem::size_of::<Vault>()
     )]
@@ -49,7 +49,7 @@ pub struct InitializeMarket<'info>{
         init,
         payer = admin , 
         space = 8 + std::mem::size_of::<OutcomePool>(),
-        seeds = [OUTCOME_POOL_SEED , params.market_id.as_bytes()],
+        seeds = [OUTCOME_POOL_SEED , &params.market_id.to_le_bytes()],
         bump
     )]
     pub outcome_pool : Account<'info , OutcomePool>,
@@ -58,10 +58,30 @@ pub struct InitializeMarket<'info>{
         init , 
         payer = admin , 
         space = 8 + std::mem::size_of::<EventQueue>(),
-        seeds = [EVRNT_QUEUE_SEED , params.market_id.as_bytes()],
+        seeds = [EVRNT_QUEUE_SEED , &params.market_id.to_le_bytes()],
         bump
     )]
     pub event_queue: Account<'info , EventQueue>,
+
+    #[account(
+        init ,
+        payer = admin,
+        space = 8 + std::mem::size_of::<Slab>(),
+        seeds = [BIDS_SEED , &params.market_id.to_le_bytes()],
+        bump
+    )]
+
+    pub bids : Account<'info , Slab>,
+
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + std::mem::size_of::<Slab>(),
+        seeds = [ASKS_SEEDS , &params.market_id.to_le_bytes()],
+        bump
+    )]
+
+    pub asks : Account<'info , Slab>,
 
     pub token_program : Interface<'info , TokenInterface>,
     pub system_program: Program<'info , System>,
@@ -73,7 +93,7 @@ pub struct InitializeMarket<'info>{
 #[derive(AnchorDeserialize , AnchorSerialize , Clone  , Debug)]
 
 pub struct InitializeMarletParams{
-    pub market_id: String,
+    pub market_id: u64,
     pub question: String,
     pub description: String,
     pub end_ts: i64,
@@ -89,6 +109,8 @@ pub fn initial_market_handler (ctx:Context<InitializeMarket> , params : Initiali
     market.description = params.description;
     market.end_ts = params.end_ts;
     market.status =crate::state::MarketStatus::Open;
+    market.asks = ctx.accounts.asks.key();
+    market.bids = ctx.accounts.bids.key();
     market.yes_mint = ctx.accounts.yes_mint.key();
     market.no_mint = ctx.accounts.no_mint.key();
     market.vault_usdc = ctx.accounts.vault.key();
