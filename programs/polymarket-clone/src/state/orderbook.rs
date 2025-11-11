@@ -41,13 +41,17 @@ pub struct SlabNode{
     pub owner: Pubkey , //traderPosition pda owning the order 
     pub quantity : u64, // remaining quantity (in outcome shares)
     pub order_id : u64,
+    pub reserved_usdc : u64, // if Buy Order: then reserved usdc 
+    pub reserved_outcome : u64, // if sell Order : then reserved outcome 
     pub next : i32, //index of next slot in price sorted linked-list (-1 if none)
     pub prev : i32,
     pub time_stamp : i64 , //used for first-in-first-out ordering for managing event queues that it should serve 
-    //as the first node should be proceesed that's arrrived first or being there for the longest term 
+    //as the first node should be processed that's arrived first or being there for the longest term 
     pub occupied : bool , // marks that is this slot contains the order or not 
 }
 
+// the reason behind we are storing reserved usdc and reserved outcome here is because of the if maker cancels than 
+// it's good to have stored the amounts in slabnodes to process refunds  
 
 #[account]
 

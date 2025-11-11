@@ -13,5 +13,7 @@ pub const MAX_ORDER_PER_TRADER : usize   = 16;
 pub const MAX_SLAB_NODES :  usize = 1024; //these are max orders stored on a single slab    
 pub const MAX_EVENTS: usize = 128;
 pub const FEE_BASIS_POINTS: u16 = 50; //0.5%
+pub const CRANKER_REWARD_BPS : u16 = 200; //2% of the fees
 
 pub const EMPTY_INDEX:i32 = -1;
+pub const PRICE_PRICISION_SCALE :u128 = 1_000_000u128; // this u128 is type casting this 1_000_000 to u128 type 

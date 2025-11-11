@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{ token_interface::{Mint, TokenInterface}};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-use crate::{constants::{EVRNT_QUEUE_SEED, MARKET_SEED, OUTCOME_POOL_SEED, VAULT_SEED , BIDS_SEED, ASKS_SEEDS}, state::{EventQueue, Market, OutcomePool, Slab, Vault}};
+use crate::{constants::{ASKS_SEEDS, BIDS_SEED, EVRNT_QUEUE_SEED, MARKET_SEED, OUTCOME_POOL_SEED, VAULT_SEED}, state::{EventQueue, Market, OutcomePool, Slab, Vault}};
 
 
 #[derive(Accounts)]
@@ -10,6 +10,7 @@ use crate::{constants::{EVRNT_QUEUE_SEED, MARKET_SEED, OUTCOME_POOL_SEED, VAULT_
 pub struct InitializeMarket<'info>{
     #[account(mut , signer)]
     pub admin : AccountInfo<'info>,
+
     #[account(
         init,
         payer = admin,
@@ -45,6 +46,38 @@ pub struct InitializeMarket<'info>{
     )]
 
     pub no_mint : InterfaceAccount<'info , Mint>,
+
+    // this is usdc mint account exist already 
+    pub usdc_mint : InterfaceAccount<'info , Mint>,
+
+    #[account(
+        init ,
+        payer = admin,
+        token::mint = usdc_mint,
+        token::authority = market,
+    )]
+
+    pub vault_usdc : InterfaceAccount<'info , TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin,
+        token::mint = yes_mint,
+        token::authority = market,    
+    )]
+
+    pub vault_yes : InterfaceAccount<'info , TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin ,
+        token::mint = usdc_mint,
+        token::authority = market,
+    )]
+
+    pub vault_no : InterfaceAccount<'info , TokenAccount>,
+
+
     #[account(
         init,
         payer = admin , 
@@ -113,12 +146,33 @@ pub fn initial_market_handler (ctx:Context<InitializeMarket> , params : Initiali
     market.bids = ctx.accounts.bids.key();
     market.yes_mint = ctx.accounts.yes_mint.key();
     market.no_mint = ctx.accounts.no_mint.key();
-    market.vault_usdc = ctx.accounts.vault.key();
+    market.vault = ctx.accounts.vault.key();
+    market.usdc_mint = ctx.accounts.usdc_mint.key();
+    market.vault_usdc = ctx.accounts.vault_usdc.key();
+    market.vault_yes = ctx.accounts.vault_yes.key();
+    market.vault_no = ctx.accounts.vault_no.key();
     market.amm_pool = ctx.accounts.outcome_pool.key();
     market.fee_bps = params.fee_bps;
     market.q_yes = 0;
     market.q_no =0;
     market.b_liquidity = 1_000_00; // initial liquidity constant 
     market.oracle = ctx.accounts.admin.key();
+    market.bump = ctx.bumps.market;
+
+
+    let vault = &mut ctx.accounts.vault;
+    vault.market = market.key();
+    vault.token_mint = ctx.accounts.usdc_mint.key();
+    vault.token_account = ctx.accounts.vault_usdc.key();
+    vault.token_collateral = 0;
+    vault.bump = ctx.bumps.vault;
+
+    let outcome_pool = &mut ctx.accounts.outcome_pool;
+    outcome_pool.market = market.key();
+    outcome_pool.yes_reserve = 0;
+    outcome_pool.no_reserve = 0;
+    outcome_pool.total_lp_shares = 0;
+    outcome_pool.bump = ctx.bumps.outcome_pool;
+
     Ok(())
 }

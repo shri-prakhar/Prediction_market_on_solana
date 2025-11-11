@@ -1,16 +1,17 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
-use crate::constants::{ASKS_SEEDS, BIDS_SEED, EMPTY_INDEX, MAX_EVENTS, MAX_ORDER_PER_TRADER, POSITION_SEED};
-use crate::state::{ Event, EventQueue, EventType, Market, MarketStatus, Orderside, Slab, TraderPosition};
+use crate::constants::{ASKS_SEEDS, BIDS_SEED, EMPTY_INDEX, MAX_EVENTS, MAX_ORDER_PER_TRADER, POSITION_SEED, PRICE_PRICISION_SCALE};
+use crate::state::{ Event, EventQueue, EventType, Market, MarketStatus, Orderside, OutcomeSide, Slab, TraderPosition};
 use crate::error::MarketError;
 use crate::utils::{allocate_node, find_matching_node, free_a_node, slab_insert_node};
 
 #[derive(Debug , AnchorSerialize ,AnchorDeserialize , Clone )]
 
 pub struct PlaceLimitOrderParams{
-    orderside: Orderside ,
-    price : u64 ,
+    orderside: Orderside , // For Buy or Sell
+    outcome : OutcomeSide,  // For Yes or No
+    price : u64 ,           // price should be scaled by PRICE_PRECISION
     quantity: u64,
     market_id: u64
 }
@@ -23,6 +24,11 @@ pub struct PlaceLimitOrder<'info>{
     
     #[account(mut)]
     pub trader_usdc : InterfaceAccount<'info , TokenAccount>,
+
+    /// This is only needed when working with Optional accounts that if there exists a account or not 
+    /// user will give or not because it's only needed here for sell order 
+    #[account(mut)]
+    pub trader_outcome: Option<InterfaceAccount<'info,TokenAccount>>,
 
     #[account(init ,
         payer = trader,
@@ -40,6 +46,19 @@ pub struct PlaceLimitOrder<'info>{
 
     #[account(mut , seeds = [BIDS_SEED , &params.market_id.to_le_bytes()] , bump)]
     pub bids : Account<'info ,Slab>,
+
+    #[account(mut)]
+
+    pub vault_usdc : InterfaceAccount<'info, TokenAccount>,
+
+    #[account(mut)]
+
+    pub vault_yes : InterfaceAccount<'info , TokenAccount>,
+
+    #[account(mut)]
+
+    pub vault_no : InterfaceAccount<'info , TokenAccount>,
+
 
     #[account(mut)]
     pub event_queue : Account<'info , EventQueue>,
@@ -68,7 +87,7 @@ pub fn place_limit_order_handler(ctx:Context<PlaceLimitOrder> , params: PlaceLim
     while left_qty > 0 {
         if let Some(index) = find_matching_node(&mut opposite_slab, left_qty as u128, is_opposite_side_slab){
            let mut node = opposite_slab.nodes[index as usize];
-           let match_quantity = if node.quantity > left_qty { left_qty } else { left_qty };
+           let match_quantity = if node.quantity > left_qty { left_qty } else { node.quantity };
 
            let ev = Event{
             event_type :  EventType::Fill,
@@ -84,6 +103,15 @@ pub fn place_limit_order_handler(ctx:Context<PlaceLimitOrder> , params: PlaceLim
            if (ctx.accounts.event_queue.events.len() as usize) >= MAX_EVENTS {
             return Err(MarketError::EventQueueFull.into());
            }
+
+           if node.reserved_usdc > 0 {
+                let reduced_usdc = (node.key).checked_mul(match_quantity as u128).ok_or(MarketError::MathError)?
+                                        .checked_div(PRICE_PRICISION_SCALE).ok_or(MarketError::MathError)? as u64;
+                node.reserved_usdc  =  node.reserved_usdc.checked_sub(reduced_usdc).ok_or(MarketError::MathError)?;   
+                
+           }else if node.reserved_outcome > 0 {
+               node.reserved_outcome = node.reserved_outcome.checked_sub(match_quantity).ok_or(MarketError::MathError)?;    
+           } 
 
            ctx.accounts.event_queue.events.push(ev);
            ctx.accounts.event_queue.count = ctx.accounts.event_queue.count.checked_add(1).ok_or(MarketError::MathError)?;
