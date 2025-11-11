@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 
-pub enum MarketError{
+pub enum MarketError {
     #[msg("Market is already Resolved")]
     MarketClosed,
     #[msg("Market is Not open for trading")]
@@ -28,5 +28,5 @@ pub enum MarketError{
     #[msg("Event Queue is full")]
     EventQueueFull,
     #[msg("Invalid PDA bump")]
-    Invalidbump 
+    Invalidbump,
 }

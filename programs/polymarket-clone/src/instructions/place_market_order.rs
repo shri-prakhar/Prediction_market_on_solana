@@ -1,46 +1,54 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{token::{Transfer, transfer}, token_interface::{TokenAccount, TokenInterface}};
+use anchor_spl::{
+    token::{transfer, Transfer},
+    token_interface::{TokenAccount, TokenInterface},
+};
 
-use crate::{constants::{MARKET_SEED , VAULT_SEED , OUTCOME_POOL_SEED}, state::{Market, OutcomePool, OutcomeSide, Vault}};
+use crate::{
+    constants::{MARKET_SEED, OUTCOME_POOL_SEED, VAULT_SEED},
+    state::{Market, OutcomePool, OutcomeSide, Vault},
+};
 
 #[derive(Accounts)]
 #[instruction(params: MarketOrderParams)]
-pub struct PlaceMarketOrder<'info>{
+pub struct PlaceMarketOrder<'info> {
     #[account(mut)]
-    pub trader : Signer<'info>,
+    pub trader: Signer<'info>,
 
     #[account(mut)]
-    pub trader_usdc : InterfaceAccount<'info , TokenAccount>,
+    pub trader_usdc: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut)]
-    pub trader_yes: InterfaceAccount<'info , TokenAccount>,
+    pub trader_yes: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut)]
-    pub trader_no : InterfaceAccount<'info , TokenAccount>,
+    pub trader_no: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut , seeds = [MARKET_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub market: Account<'info , Market>,
+    pub market: Account<'info, Market>,
 
     #[account(mut , seeds = [VAULT_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub vault : Account<'info , Vault>,
+    pub vault: Account<'info, Vault>,
 
     #[account(mut , seeds = [OUTCOME_POOL_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub outcome_pool : Account<'info , OutcomePool>,
+    pub outcome_pool: Account<'info, OutcomePool>,
 
-    pub token_program: Interface<'info , TokenInterface>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[repr(C)]
-#[derive(Debug, AnchorSerialize , AnchorDeserialize , Clone )]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 
-pub struct MarketOrderParams{
-    side : OutcomeSide,
-    amount : u64,
-    market_id : u64
+pub struct MarketOrderParams {
+    side: OutcomeSide,
+    amount: u64,
+    market_id: u64,
 }
 
-
-pub fn place_market_order_handler(ctx: Context<PlaceMarketOrder> , params : MarketOrderParams) -> Result<()>{
+pub fn place_market_order_handler(
+    ctx: Context<PlaceMarketOrder>,
+    params: MarketOrderParams,
+) -> Result<()> {
     let market = &mut ctx.accounts.market;
     let pool = &mut ctx.accounts.outcome_pool;
 
@@ -48,32 +56,37 @@ pub fn place_market_order_handler(ctx: Context<PlaceMarketOrder> , params : Mark
     let q_yes = market.q_yes as f64;
     let q_no = market.q_no as f64;
 
-    let (final_cost  , new_yes  , new_no) = match params.side {
+    let (final_cost, new_yes, new_no) = match params.side {
         OutcomeSide::Yes => {
-            let old_cost = b * (((q_yes)/b).exp() + ((q_no) / b).exp()).ln();
-            let new_cost = b* (((q_yes + params.amount as f64)/b).exp() + ((q_no) / b).exp()).ln();
+            let old_cost = b * (((q_yes) / b).exp() + ((q_no) / b).exp()).ln();
+            let new_cost =
+                b * (((q_yes + params.amount as f64) / b).exp() + ((q_no) / b).exp()).ln();
 
             let final_cost = new_cost - old_cost;
 
-            (final_cost , q_yes + params.amount as f64 , q_no )
+            (final_cost, q_yes + params.amount as f64, q_no)
         }
         OutcomeSide::No => {
-            let old_cost  = b * (((q_no )/ b).exp() + ((q_no) / b).exp()).ln();
-            let new_cost = b * (((q_yes) / b).exp() + ((q_no + params.amount as f64)/b).exp()).ln();
+            let old_cost = b * (((q_no) / b).exp() + ((q_no) / b).exp()).ln();
+            let new_cost =
+                b * (((q_yes) / b).exp() + ((q_no + params.amount as f64) / b).exp()).ln();
 
             let final_cost = new_cost - old_cost;
 
-            (final_cost , q_yes , q_no + params.amount as f64)
+            (final_cost, q_yes, q_no + params.amount as f64)
         }
     };
 
-    let transfer_ix = Transfer{
+    let transfer_ix = Transfer {
         from: ctx.accounts.trader_usdc.to_account_info(),
         to: ctx.accounts.vault.to_account_info(),
-        authority: ctx.accounts.trader.to_account_info()
-    };  
+        authority: ctx.accounts.trader.to_account_info(),
+    };
 
-    transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_ix), final_cost as u64)?;
+    transfer(
+        CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_ix),
+        final_cost as u64,
+    )?;
 
     if params.side == OutcomeSide::Yes {
         pool.yes_reserve = new_yes as u128;
@@ -82,7 +95,6 @@ pub fn place_market_order_handler(ctx: Context<PlaceMarketOrder> , params : Mark
         pool.yes_reserve = new_yes as u128;
         pool.no_reserve = new_no as u128;
     }
-    
-    Ok(())
-} 
 
+    Ok(())
+}
