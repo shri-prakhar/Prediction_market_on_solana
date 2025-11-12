@@ -5,7 +5,7 @@ use crate::constants::{
     MAX_ORDER_PER_TRADER, POSITION_SEED,
 };
 use crate::error::MarketError;
-use crate::state::{Event, EventQueue, EventType, Market, Slab, TraderPosition};
+use crate::state::{Event, EventQueue, EventType, Market, OutcomeSide, Slab, TraderPosition};
 use crate::utils::free_a_node;
 
 #[repr(C)]
@@ -53,13 +53,20 @@ pub fn cancle_order_handler(ctx: Context<CancelOrder>, params: CancelOrderParams
     require!(slot_index.is_some(), MarketError::OrderNotFound);
     let i = slot_index.unwrap();
     let mut found = false;
+    let mut reserved_usdc = 0;
+    let mut reserved_outcome = 0;
+    let mut n_outcome: OutcomeSide = OutcomeSide::Yes;
     for slab in [&mut ctx.accounts.asks, &mut ctx.accounts.bids].iter_mut() {
         let mut index = slab.head_index;
         while index != EMPTY_INDEX {
             let n = slab.nodes[index as usize];
             if n.occupied && n.order_id == params.order_id {
+                reserved_outcome = n.reserved_outcome;
+                reserved_usdc = n.reserved_usdc; 
+                n_outcome = n.outcome;   
                 let prev = n.prev;
                 let next = n.next;
+                
 
                 if prev != EMPTY_INDEX {
                     slab.nodes[prev as usize].next = next
@@ -100,10 +107,11 @@ pub fn cancle_order_handler(ctx: Context<CancelOrder>, params: CancelOrderParams
         event_type: EventType::Cancel,
         maker: trader_position.owner,
         taker: Pubkey::default(),
-        quantity: 0,
-        price: 0,
+        quantity: reserved_outcome,
+        price: reserved_usdc,
         side: 0,
         order_id: params.order_id,
+        outcome: n_outcome,
         time_stamp: Clock::get()?.unix_timestamp,
     });
 

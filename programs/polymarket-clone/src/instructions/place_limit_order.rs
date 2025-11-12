@@ -112,6 +112,7 @@ pub fn place_limit_order_handler(
                     Orderside::Sell => 1u8,
                 },
                 order_id: node.order_id,
+                outcome : params.outcome,
                 time_stamp: now,
             };
 
@@ -234,6 +235,7 @@ pub fn place_limit_order_handler(
         node.reserved_usdc = reserved_usdc;
         node.reserved_outcome = reserved_outcome;
         node.order_id = Clock::get()?.slot as u64;
+        node.outcome = params.outcome;
         node.time_stamp = now;
         node.occupied = true;
         node.next = EMPTY_INDEX;

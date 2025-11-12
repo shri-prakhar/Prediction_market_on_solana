@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::MAX_SLAB_NODES;
+use crate::{constants::MAX_SLAB_NODES, state::OutcomeSide};
 
 #[repr(C)]
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +21,7 @@ pub struct Event {
     pub price: u64,
     pub side: u8, //0: Buy , 1: Sell
     pub order_id: u64,
+    pub outcome : OutcomeSide,
     pub time_stamp: i64,
 }
 
@@ -43,6 +44,7 @@ pub struct SlabNode {
     pub order_id: u64,
     pub reserved_usdc: u64,    // if Buy Order: then reserved usdc
     pub reserved_outcome: u64, // if sell Order : then reserved outcome
+    pub outcome : OutcomeSide, // Yes or No
     pub next: i32,             //index of next slot in price sorted linked-list (-1 if none)
     pub prev: i32,
     pub time_stamp: i64, //used for first-in-first-out ordering for managing event queues that it should serve
