@@ -1,27 +1,14 @@
 use anchor_lang::prelude::*;
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-pub enum OutcomeSide {
-    Yes,
-    No,
-}
-#[repr(C)]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
-
-pub enum Orderside {
-    Buy,
-    Sell,
-}
-
-#[repr(C)]
+#[repr(u8)]
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 
 pub enum MarketStatus {
-    Open,
-    Paused,
-    Resolved { winner: OutcomeSide },
-    Cancelled,
+    Open = 0,
+    Paused = 1,
+    ResolvedYes = 2,
+    ResolvedNo = 3,
+    Cancelled = 4,
 }
 
 #[account]
@@ -41,12 +28,15 @@ pub struct Market {
     pub vault_usdc: Pubkey,
     pub amm_pool: Pubkey,
     pub fee_bps: u16,
+    pub cranker_reward_bps : u16,
     pub q_yes: u128,
     pub q_no: u128,
     pub b_liquidity: u64,
     pub bids: Pubkey,
     pub asks: Pubkey,
+    pub request_queue : Pubkey,
     pub event_queue: Pubkey,
     pub oracle: Pubkey,
     pub bump: u8,
+    pub vault_signer_bump : u8
 }

@@ -78,7 +78,7 @@ pub fn consume_events_handler<'info>(ctx: Context<'_, '_, 'info, 'info, ConsumeE
         let taker_outcome_ac : InterfaceAccount<'info,TokenAccount> = InterfaceAccount::try_from(taker_outcome)?;
  
 
-        match event.event_type {
+        match event.event_type {    
             EventType::Fill => {
                 let seeds: &[&[&[u8]]] = &[seeds];
                 let usdc_amount = (event.price as u128).checked_mul(event.quantity as u128).ok_or(MarketError::MathError)?

@@ -3,30 +3,28 @@ use anchor_lang::prelude::*;
 #[error_code]
 
 pub enum MarketError {
-    #[msg("Market is already Resolved")]
-    MarketClosed,
-    #[msg("Market is Not open for trading")]
+    #[msg("Market is Not Open")]
     MarketNotOpen,
-    #[msg("Invalid Outcome specified")]
-    InvalidOutcome,
+    #[msg("Event Queue is Full")]
+    EventQueueFUll,
+    #[msg("Request Queue is Full")]
+    RequestQueueFull,
     #[msg("Insufficient Balance for this operation")]
-    InsufficientBalnace,
-    #[msg("Invalid Order limit size")]
-    InvalidOrderSide,
-    #[msg("No matching order available")]
-    NoMatchingOrder,
+    InsufficientBalance,
     #[msg("Order Not Found")]
     OrderNotFound,
     #[msg("Exceeded max open orders per trade")]
     MaxOrderReached,
-    #[msg("Oracle Not Authorised to resolve the market")]
-    UnauthorizedOracle,
-    #[msg("Market Already Intialized")]
-    MarketAlreadyInitialized,
+    #[msg("Unauthorized")]
+    Unauthorized,
     #[msg("Math Overflow or Underflow Detected")]
     MathError,
-    #[msg("Event Queue is full")]
-    EventQueueFull,
-    #[msg("Invalid PDA bump")]
-    Invalidbump,
+    #[msg("No Matching Order Found")]
+    NoMatchingOrder,
+    #[msg("Invalid Argument")]
+    InvalidArgument,
+    #[msg("Slot Already Occupied")]
+    SlotOccupied,
+    #[msg("Vault Transfer Failed")]
+    VaultTransferFailed
 }
