@@ -118,6 +118,40 @@ fn left_rotate(slab: &mut Slab , x:i32){
         slab.root_price_node = y;
     }else{
         let x_parent = slab.price_nodes[x as usize].parent;
-        if x == 
+        if x == slab.price_nodes[x_parent as usize].left {
+            slab.price_nodes[x_parent as usize].left = y;
+        }else{
+            slab.price_nodes[x_parent as usize].right = x;
+        }
     }
+
+    slab.price_nodes[y as usize].left = x;
+    slab.price_nodes[x as usize].parent = y; 
+}
+
+fn right_rotate(slab: &mut Slab , x:i32){
+    let y = slab.price_nodes[x as usize].left;
+    if is_null(y) {
+        return;
+    }
+    slab.price_nodes[x as usize].left = slab.price_nodes[y as usize].right;
+    if !is_null(slab.price_nodes[y as usize].right){
+        let r = slab.price_nodes[y as usize].right;
+        slab.price_nodes[r as usize].parent = x;
+    }
+    
+    slab.price_nodes[y as usize].parent = slab.price_nodes[x as usize].parent;
+    if is_null(slab.price_nodes[x as usize].parent){
+        slab.root_price_node = y;
+    }else { 
+        let x_parent = slab.price_nodes[x as usize].parent;
+        if x == slab.price_nodes[x_parent as usize].left{
+            slab.price_nodes[x_parent as usize].left = y;
+        }else{
+            slab.price_nodes[x_parent as usize].right = y;
+        }
+    }
+
+    slab.price_nodes[y as usize].right = x;
+    slab.price_nodes[x as usize].parent = y;
 }
