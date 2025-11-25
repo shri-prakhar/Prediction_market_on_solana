@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{constants::{MAX_ORDER_ENTRIES, MAX_PRICE_NODES}, error::MarketError, state::Slab, utils::slab};
+use crate::{constants::{MAX_ORDER_ENTRIES, MAX_PRICE_NODES}, error::MarketError, state::Slab};
 
 pub fn initialize_slab(slab: &mut Slab , is_bid: bool , bump: u8 ) {
     slab.is_bid = is_bid;
@@ -154,4 +154,175 @@ fn right_rotate(slab: &mut Slab , x:i32){
 
     slab.price_nodes[y as usize].right = x;
     slab.price_nodes[x as usize].parent = y;
+}
+
+fn insert_fixup(slab : &mut Slab , mut z: i32){
+    while is_red(slab, slab.price_nodes[z as usize].parent){
+        let parent = slab.price_nodes[z as usize].parent;
+        let grand_parent = slab.price_nodes[parent as usize].parent;
+        if parent == slab.price_nodes[grand_parent as usize].left {
+            let uncle = slab.price_nodes[grand_parent as usize].right;
+            if is_red(slab, uncle){
+                set_color(slab, parent, 0);
+                set_color(slab, uncle, 0);
+                set_color(slab, grand_parent, 1);
+                z=grand_parent;
+            }else{
+                if z == slab.price_nodes[parent as usize].right{
+                    z=parent;
+                    left_rotate(slab, z);
+            }
+                let parent2 = slab.price_nodes[z as usize].parent;
+                let grand_parent2 = slab.price_nodes[parent2 as usize].parent;
+                set_color(slab, parent2, 0);
+                set_color(slab, grand_parent2, 1);
+                right_rotate(slab, grand_parent2);
+            }
+        }else{
+            let uncle= slab.price_nodes[grand_parent as usize].left;
+            if is_red(slab, uncle){
+                set_color(slab, uncle, 0);
+                set_color(slab, parent, 0);
+                set_color(slab, grand_parent, 1);
+                z=grand_parent
+            }else{
+                if z == slab.price_nodes[parent as usize].left{
+                    z = parent;
+                    right_rotate(slab, z);
+                }
+                let parent2 = slab.price_nodes[z as usize].parent;
+                let grand_parent2 = slab.price_nodes[parent2 as usize].parent;
+                set_color(slab, parent2, 0);
+                set_color(slab, grand_parent2, 1);
+                left_rotate(slab, grand_parent2);
+
+            }
+        }
+        if slab.root_price_node == -1 {
+            break;
+        }
+    }
+    set_color(slab, slab.root_price_node, 0);
+}
+
+pub fn insert_price_node_by_tree(slab : &mut Slab , price : u128) -> Result<i32>{
+    if let Some(index) = find_price_node_index(slab, price) {
+        return Ok(index);
+    }
+    let z = allocate_price_node(slab)?;
+    slab.price_nodes[z as usize].key = 1;
+    let mut y = -1;
+    let mut x = slab.root_price_node;
+    while is_null(x ){
+        x = y;
+        if price < slab.price_nodes[x as usize].key{
+            x = slab.price_nodes[x as usize].left;
+        }else{
+            x = slab.price_nodes[x as usize].right;
+        }
+    }
+
+    slab.price_nodes[z as usize].parent = y;
+
+    if is_null(y){
+        slab.root_price_node = z;
+    }else if price < slab.price_nodes[y as usize].key {
+        slab.price_nodes[y as usize].left = z;
+    }else{
+        slab.price_nodes[y as usize].right = z;
+    }
+
+    slab.price_nodes[z as usize].color = 1;
+
+    insert_fixup(slab, z);
+    Ok(z)
+}
+
+fn transplant(slab: &mut Slab , u: i32 , v: i32){
+    let u_parent = slab.price_nodes[u as usize].parent;
+    if is_null(u_parent){
+        slab.root_price_node = v;
+    }else if u == slab.price_nodes[u_parent as usize].left{
+        slab.price_nodes[u_parent as usize].left = v;
+    }else{
+        slab.price_nodes[u_parent as usize].right = v;
+    }
+    if !is_null(v){
+        slab.price_nodes[v as usize].parent = u_parent;
+    }
+}
+
+fn tree_min(slab : &mut Slab , mut x: i32) -> i32 {
+    while !is_null(slab.price_nodes[x as usize].left){
+        x = slab.price_nodes[x as usize].left;
+    }
+    x
+}
+
+fn delete_fixup(slab : &mut Slab , mut x: i32 , mut x_parent: i32){
+    while x != slab.root_price_node && (!(!is_null(x) && is_red(slab, x))) {
+        if x_parent == -1{
+            break;
+        }
+        if x == slab.price_nodes[x_parent as usize].left{
+            let mut sibling = slab.price_nodes[x_parent as usize].right;
+            if is_red(slab, sibling){
+                set_color(slab, sibling, 0);
+                set_color(slab, x_parent, 1);
+                left_rotate(slab, x_parent);
+                sibling = slab.price_nodes[x_parent as usize].right;
+            }
+            if !is_null(slab.price_nodes[sibling as usize].left) && !is_red(slab, slab.price_nodes[sibling as usize].left) && !is_null(slab.price_nodes[sibling as usize].right) && !is_red(slab, slab.price_nodes[sibling as usize].right){
+                set_color(slab, sibling, 1);
+                x = x_parent;
+                x_parent = slab.price_nodes[x as usize].parent;
+            } else {
+                if !is_null(slab.price_nodes[sibling as usize].right) && !is_red(slab, slab.price_nodes[sibling as usize].right){
+                    let sibling_left = slab.price_nodes[sibling as usize].left;
+                    set_color(slab, sibling_left, 0);
+                    set_color(slab, sibling, 1);
+                    right_rotate(slab, sibling);
+                    sibling = slab.price_nodes[x_parent as usize].right;
+                }
+                set_color(slab, sibling, slab.price_nodes[x_parent as usize].color);
+                set_color(slab, x_parent, 0);
+                let sibling_right = slab.price_nodes[sibling as usize].right;
+                set_color(slab, sibling_right, 0);
+                left_rotate(slab, x_parent);
+                x = slab.root_price_node;
+                break;
+            }
+        }else{
+            let mut sibling = slab.price_nodes[x_parent as usize].left;
+            if is_red(slab, sibling){
+                set_color(slab, sibling, 0);
+                set_color(slab, x_parent, 1);
+                right_rotate(slab, sibling);
+                sibling = slab.price_nodes[x_parent as usize].left;
+            }
+            if !is_null(slab.price_nodes[sibling as usize].right) && !is_red(slab, slab.price_nodes[sibling as usize].right) && !is_null(slab.price_nodes[sibling as usize].left) && !is_red(slab, slab.price_nodes[sibling as usize].left){
+                set_color(slab, sibling, 1);
+                x = x_parent;
+                x_parent = slab.price_nodes[x as usize].parent
+            } else {
+                if !is_null(slab.price_nodes[sibling as usize].left) && !is_red(slab, slab.price_nodes[sibling as usize].left){
+                    let sibling_right = slab.price_nodes[sibling as usize].right;
+                    set_color(slab, sibling_right, 0);
+                    set_color(slab, sibling, 1);
+                    left_rotate(slab, sibling);
+                    sibling = slab.price_nodes[x_parent as usize].left;
+                }
+                set_color(slab, sibling, slab.price_nodes[x_parent as usize].color);
+                set_color(slab, x_parent, 0);
+                let sibling_left = slab.price_nodes[sibling as usize].left;
+                set_color(slab, sibling_left, 0);
+                right_rotate(slab, x_parent);
+                x = slab.root_price_node;
+                break;
+            }
+        }
+    }
+    if !is_null(x){
+        set_color(slab, x, 0);
+    }
 }
