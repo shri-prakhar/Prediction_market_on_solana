@@ -326,3 +326,5 @@ fn delete_fixup(slab : &mut Slab , mut x: i32 , mut x_parent: i32){
         set_color(slab, x, 0);
     }
 }
+
+pub fn remove_price_node(slab : &mut Slab , z: i32) ->
