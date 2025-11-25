@@ -327,4 +327,122 @@ fn delete_fixup(slab : &mut Slab , mut x: i32 , mut x_parent: i32){
     }
 }
 
-pub fn remove_price_node(slab : &mut Slab , z: i32) ->
+pub fn remove_price_node(slab : &mut Slab , z: i32) -> Result<()>{
+    if is_null(z){ return Ok(());}
+
+    let mut y = z;
+    let mut y_original_color = slab.price_nodes[y as usize].color;
+    let mut x : i32;
+    let mut x_parent = -1;
+
+    if is_null(slab.price_nodes[z as usize].left){
+        x = slab.price_nodes[z as usize].right;
+        x_parent = slab.price_nodes[z as usize].right;
+        transplant(slab, z, x);
+    } else if is_null(slab.price_nodes[z as usize].left){
+        x = slab.price_nodes[z as usize].right;
+        x_parent = slab.price_nodes[z as usize].parent;
+        transplant(slab, z, x);
+    }else{
+        y = tree_min(slab, slab.price_nodes[z as usize].right);
+        let y_color_before = slab.price_nodes[y as usize].color;
+        y_original_color = y_color_before;
+        x = slab.price_nodes[y as usize].right;
+        if slab.price_nodes[y as usize].parent == z {
+            if !is_null(x){
+                slab.price_nodes[x as usize].parent = y;                
+            }
+            x_parent = y;
+        }else{
+            x_parent = slab.price_nodes[y as usize].parent;
+            transplant(slab, y, slab.price_nodes[y as usize].right);
+            slab.price_nodes[y as usize].right = slab.price_nodes[z as usize].right;
+            if !is_null(slab.price_nodes[y as usize].right){
+                let right = slab.price_nodes[y as usize].right;
+                slab.price_nodes[right as usize].parent = y;
+            }
+        }
+        transplant(slab, z, y);
+        slab.price_nodes[y as usize].left = slab.price_nodes[z as usize].left;
+        if !is_null(slab.price_nodes[y as usize].left){
+            let left = slab.price_nodes[y as usize].left;
+            slab.price_nodes[left as usize].left = y; 
+        }
+        slab.price_nodes[y as usize].color = slab.price_nodes[z as usize].color;
+    }
+
+    slab.price_nodes[z as usize].occupied = false;
+    slab.price_nodes[z as usize].left = -1;
+    slab.price_nodes[z as usize].right = -1;
+    slab.price_nodes[z as usize].order_head = -1;
+    slab.price_nodes[z as usize].order_tail = -1;
+    slab.price_nodes[z as usize].key = 0;
+    slab.price_nodes[z as usize].color = 0;
+    slab.price_nodes[z as usize].parent = -1;
+    slab.node_count = slab.node_count.checked_sub(1).ok_or(MarketError::MathError)?;
+
+    if y_original_color == 0 {
+        delete_fixup(slab, x, x_parent);
+    }
+
+    Ok(())
+}
+
+pub fn append_order_to_price(slab : &mut Slab , price_node_index : i32 , order_index : i32) -> Result<()>{
+    if price_node_index < 0 { 
+        return err!(MarketError::MathError);
+    }
+
+    let price_node = &mut slab.price_nodes[price_node_index as usize];
+    if price_node.order_head == -1 {
+        price_node.order_head = order_index;
+        price_node.order_tail = order_index;
+    }else{
+        let tail = price_node.order_tail;
+        slab.order_entries[tail as usize].next_in_price = order_index;
+        price_node.order_tail = order_index
+    }
+    slab.order_entries[order_index as usize].next_in_price = -1;
+    Ok(())
+} 
+
+pub fn pop_order_from_prices(slab : &mut Slab , price_node_index : i32 ) -> Result<i32> {
+    if price_node_index < 0 { return err!(MarketError::NoMatchingOrder); }
+    let price_node = &mut slab.price_nodes[price_node_index as usize];
+    if price_node.order_head == -1 {
+        return err!(MarketError::NoMatchingOrder)
+    }
+    let head = price_node.order_head;
+    let next = slab.order_entries[head as usize].next_in_price;
+    price_node.order_head = next;
+    if price_node.order_head == -1 {
+        price_node.order_tail = -1;
+    }
+
+    slab.order_entries[head as usize].occupied = false;
+    slab.order_entries[head as usize].next_in_price = -1;
+    Ok(head)
+} 
+
+pub fn find_best_price_node_index(slab : &Slab) -> Option<i32> {
+    let root = slab.root_price_node;
+    if root == -1 {
+        return None;
+    }
+
+    if slab.is_bid{
+        let mut current = root;
+        while slab.price_nodes[current as usize].right != -1 {
+            current = slab.price_nodes[current as usize].right;
+        }
+        Some(current)
+    }else{
+        let mut current = root;
+        while slab.price_nodes[current as usize].right != -1 {
+            current = slab.price_nodes[current as usize].right;
+        }
+
+        Some(current)
+    }
+
+}
