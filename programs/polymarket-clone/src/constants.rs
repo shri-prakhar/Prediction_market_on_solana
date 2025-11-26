@@ -18,7 +18,7 @@ pub const OPEN_ORDER_SEED: &[u8] = b"open_order";
 // pub const CRANKER_REWARD_BPS: u16 = 200; //2% of the fees
 
 // pub const EMPTY_INDEX: i32 = -1;
-// pub const PRICE_PRICISION_SCALE: u128 = 1_000_000u128; // this u128 is type casting this 1_000_000 to u128 typeb
+pub const PRICE_PRICISION_SCALE: u128 = 1_000_000u128; // this u128 is type casting this 1_000_000 to u128 typeb
 
 pub const MAX_REQUESTS: usize = 512;
 pub const MAX_EVENTS: usize = 1024;

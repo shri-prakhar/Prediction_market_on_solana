@@ -1,21 +1,25 @@
-pub mod cancel_order;
+pub mod cancel_request;
 pub mod claim_rewards;
 pub mod consume_events;
+pub mod deposit;
 pub mod initialize_market;
 pub mod merge_tokens;
 pub mod openorders;
 pub mod place_limit_order;
 pub mod place_market_order;
+pub mod place_request;
 pub mod resolve_market;
 pub mod split_tokens;
 
-pub use cancel_order::*;
+pub use cancel_request::*;
 pub use claim_rewards::*;
 pub use consume_events::*;
+pub use deposit::*;
 pub use initialize_market::*;
 pub use merge_tokens::*;
 pub use openorders::*;
 pub use place_limit_order::*;
 pub use place_market_order::*;
+pub use place_request::*;
 pub use resolve_market::*;
 pub use split_tokens::*;

@@ -25,6 +25,8 @@ pub enum MarketError {
     InvalidArgument,
     #[msg("Slot Already Occupied")]
     SlotOccupied,
+    #[msg("Invalid Order Side")]
+    InvalidSide,
     #[msg("Vault Transfer Failed")]
     VaultTransferFailed,
 }
