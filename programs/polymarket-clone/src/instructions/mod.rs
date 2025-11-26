@@ -11,6 +11,7 @@ pub mod place_request;
 pub mod resolve_market;
 pub mod split_tokens;
 pub mod match_request;
+pub mod settle_funds;
 
 pub use cancel_request::*;
 pub use claim_rewards::*;
@@ -25,3 +26,4 @@ pub use place_request::*;
 pub use resolve_market::*;
 pub use split_tokens::*;
 pub use match_request::*;
+pub use settle_funds::*;

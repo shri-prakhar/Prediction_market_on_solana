@@ -1,39 +1,26 @@
 use anchor_lang::prelude::*;
 
-use crate::{
-    constants::MARKET_SEED,
-    error::MarketError,
-    state::{Market, MarketStatus, OutcomeSide},
-};
-
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
-
-pub struct ResolveMarketParams {
-    winner: OutcomeSide,
-    market_id: u64,
-}
+use crate::{error::MarketError, state::{Market, MarketStatus, OutcomeSide}};
 
 #[derive(Accounts)]
-#[instruction(params: ResolveMarketParams)]
-pub struct ResolveMarket<'info> {
-    #[account(mut , seeds = [MARKET_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub market: Account<'info, Market>,
+pub struct ResolveMarket<'info>{
+    #[account(mut)]
+    pub market: Account<'info , Market>,
 
-    pub oracle: Signer<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>
 }
 
-pub fn resolve_market_handler(
-    ctx: Context<ResolveMarket>,
-    params: ResolveMarketParams,
-) -> Result<()> {
-    let market = &mut ctx.accounts.market;
-    require!(
-        matches!(market.status, MarketStatus::Open),
-        MarketError::MarketNotOpen
-    );
+pub fn resolve_market(ctx: Context<ResolveMarket> , winner: u8) -> Result<()> {
+    if ctx.accounts.market.creator != ctx.accounts.market.key() {
+        return err!(MarketError::Unauthorized);
+    }
 
-    market.status = MarketStatus::Resolved {
-        winner: (params.winner),
-    };
+    if winner == OutcomeSide::Yes as u8 {
+        ctx.accounts.market.status = MarketStatus::ResolvedYes
+    }else if winner == OutcomeSide::No as u8{
+        ctx.accounts.market.status = MarketStatus::ResolvedNo
+    }
+    
     Ok(())
 }
