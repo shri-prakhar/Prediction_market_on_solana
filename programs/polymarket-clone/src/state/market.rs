@@ -25,6 +25,7 @@ pub struct Market {
     pub vault_yes: Pubkey,
     pub vault_no: Pubkey,
     pub vault_usdc: Pubkey,
+    pub fee_vault_usdc:Pubkey,
     pub fee_bps: u16,
     pub cranker_reward_bps: u16,
     pub q_yes: u128,

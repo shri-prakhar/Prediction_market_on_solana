@@ -10,6 +10,7 @@ pub mod place_market_order;
 pub mod place_request;
 pub mod resolve_market;
 pub mod split_tokens;
+pub mod match_request;
 
 pub use cancel_request::*;
 pub use claim_rewards::*;
@@ -23,3 +24,4 @@ pub use place_market_order::*;
 pub use place_request::*;
 pub use resolve_market::*;
 pub use split_tokens::*;
+pub use match_request::*;

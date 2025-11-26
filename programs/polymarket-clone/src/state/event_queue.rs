@@ -18,6 +18,7 @@ pub struct Event {
     pub makers_open_orders: Pubkey,
     pub maker_slot: u16,
     pub taker_open_orders: Pubkey,
+    pub taker_side: u8, //i.e. order_side Buy or Sell
     pub taker_slot: u16,
     pub price: u128,
     pub quantity: u64,

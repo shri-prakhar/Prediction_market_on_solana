@@ -3,8 +3,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
     constants::{
-        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, MARKET_SEED, REQUEST_QUEUE_SEED, VAULT_NO_SEED,
-        VAULT_USDC_SEED, VAULT_YES_SEED,
+        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, FEE_VAULT_USDC, MARKET_SEED, REQUEST_QUEUE_SEED, VAULT_NO_SEED, VAULT_USDC_SEED, VAULT_YES_SEED
     },
     state::{EventQueue, Market, RequestQueue, Slab},
     utils::initialize_slab,
@@ -111,6 +110,16 @@ pub struct InitializeMarket<'info> {
     )]
     pub vault_no: Account<'info, TokenAccount>,
 
+    #[account(
+        init,
+        payer = admin,
+        token::mint = usdc_mint,
+        token::authority = market,
+        seeds = [FEE_VAULT_USDC , &params.market_id.to_le_bytes()],
+        bump
+    )]
+    pub fee_vault_usdc : Account<'info , TokenAccount>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -149,6 +158,7 @@ pub fn initial_market_handler(
     market.vault_no = ctx.accounts.vault_no.key();
     market.event_queue = ctx.accounts.event_queue.key();
     market.request_queue = ctx.accounts.request_queue.key();
+    market.fee_vault_usdc = ctx.accounts.fee_vault_usdc.key();
     market.fee_bps = params.fee_bps;
     market.cranker_reward_bps = params.cranker_fee_bps;
     market.q_yes = 0;

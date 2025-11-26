@@ -10,7 +10,7 @@ pub const EVENT_QUEUE_SEED: &[u8] = b"event_queue";
 pub const REQUEST_QUEUE_SEED: &[u8] = b"request_queue";
 pub const POSITION_SEED: &[u8] = b"position";
 pub const OPEN_ORDER_SEED: &[u8] = b"open_order";
-
+pub const FEE_VAULT_USDC: &[u8] = b"fee_vault_usdc";
 // pub const MAX_ORDER_PER_TRADER: usize = 16;
 // pub const MAX_SLAB_NODES: usize = 1024; //these are max orders stored on a single slab
 // pub const MAX_EVENTS: usize = 128;
