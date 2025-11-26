@@ -112,7 +112,7 @@ pub fn place_limit_order_handler(
                     Orderside::Sell => 1u8,
                 },
                 order_id: node.order_id,
-                outcome : params.outcome,
+                outcome: params.outcome,
                 time_stamp: now,
             };
 

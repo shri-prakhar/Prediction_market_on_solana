@@ -1,19 +1,19 @@
+pub mod event_queue;
 pub mod liquidity_provider;
 pub mod manager;
 pub mod market;
+pub mod open_orders;
 pub mod order_book;
 pub mod outcome_pool;
-pub mod vault;
 pub mod request_queue;
-pub mod event_queue;
-pub mod open_orders;
+pub mod vault;
 
+pub use event_queue::*;
 pub use liquidity_provider::*;
 pub use manager::*;
 pub use market::*;
+pub use open_orders::*;
 pub use order_book::*;
 pub use outcome_pool::*;
-pub use vault::*;
 pub use request_queue::*;
-pub use event_queue::*;
-pub use open_orders::*;
+pub use vault::*;

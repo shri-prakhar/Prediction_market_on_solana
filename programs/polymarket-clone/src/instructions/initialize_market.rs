@@ -3,9 +3,11 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
     constants::{
-        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, MARKET_SEED, REQUEST_QUEUE_SEED, VAULT_NO_SEED, VAULT_USDC_SEED, VAULT_YES_SEED
+        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, MARKET_SEED, REQUEST_QUEUE_SEED, VAULT_NO_SEED,
+        VAULT_USDC_SEED, VAULT_YES_SEED,
     },
-    state::{EventQueue, Market, RequestQueue, Slab}, utils::initialize_slab,
+    state::{EventQueue, Market, RequestQueue, Slab},
+    utils::initialize_slab,
 };
 
 #[derive(Accounts)]
@@ -29,13 +31,13 @@ pub struct InitializeMarket<'info> {
         payer = admin,
         space = 8 + std::mem::size_of::<RequestQueue>(),
         seeds = [REQUEST_QUEUE_SEED , &params.market_id.to_le_bytes()],
-        bump 
+        bump
     )]
-    pub request_queue : Account<'info , RequestQueue>,
-    
+    pub request_queue: Account<'info, RequestQueue>,
+
     #[account(
-        init, 
-        payer = admin, 
+        init,
+        payer = admin,
         space = 8 + std::mem::size_of::<EventQueue>(),
         seeds = [EVENT_QUEUE_SEED , &params.market_id.to_le_bytes()],
         bump
@@ -95,7 +97,7 @@ pub struct InitializeMarket<'info> {
         token::mint = yes_mint,
         token::authority = market,
         seeds = [VAULT_YES_SEED , &params.market_id.to_le_bytes()],
-        bump 
+        bump
     )]
     pub vault_yes: Account<'info, TokenAccount>,
 
@@ -159,8 +161,8 @@ pub fn initial_market_handler(
     ctx.accounts.request_queue.head = 0;
     ctx.accounts.request_queue.count = 0;
     ctx.accounts.request_queue.bump = ctx.bumps.request_queue;
-    
-    //initializing event queue 
+
+    //initializing event queue
     ctx.accounts.event_queue.head = 0;
     ctx.accounts.event_queue.count = 0;
     ctx.accounts.event_queue.bump = ctx.bumps.event_queue;
@@ -171,6 +173,6 @@ pub fn initial_market_handler(
 
     let bids = &mut ctx.accounts.bids;
     initialize_slab(bids, true, ctx.bumps.bids);
-    
+
     Ok(())
 }

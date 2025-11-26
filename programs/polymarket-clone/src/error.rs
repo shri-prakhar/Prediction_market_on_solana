@@ -26,5 +26,5 @@ pub enum MarketError {
     #[msg("Slot Already Occupied")]
     SlotOccupied,
     #[msg("Vault Transfer Failed")]
-    VaultTransferFailed
+    VaultTransferFailed,
 }
