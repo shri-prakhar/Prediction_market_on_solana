@@ -1,19 +1,19 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
     constants::{
-        ASKS_SEEDS, BIDS_SEED, EVRNT_QUEUE_SEED, MARKET_SEED, OUTCOME_POOL_SEED, VAULT_SEED,
+        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, MARKET_SEED, REQUEST_QUEUE_SEED, VAULT_NO_SEED, VAULT_USDC_SEED, VAULT_YES_SEED
     },
-    state::{EventQueue, Market, OutcomePool, Slab, Vault},
+    state::{EventQueue, Market, RequestQueue, Slab}, utils::initialize_slab,
 };
 
 #[derive(Accounts)]
-#[instruction(params:InitializeMarletParams)]
+#[instruction(params:InitializeMarketParams)]
 
 pub struct InitializeMarket<'info> {
-    #[account(mut, signer)]
-    pub admin: AccountInfo<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
 
     #[account(
         init,
@@ -25,71 +25,19 @@ pub struct InitializeMarket<'info> {
     pub market: Account<'info, Market>,
 
     #[account(
-        init ,
-        payer = admin,
-        seeds = [VAULT_SEED , &params.market_id.to_le_bytes()],
-        bump,
-        space = 8 + std::mem::size_of::<Vault>()
-    )]
-    pub vault: Account<'info, Vault>,
-
-    #[account(
-        init ,
-        payer = admin,
-        mint::decimals = 6,
-        mint::authority = market,
-    )]
-    pub yes_mint: InterfaceAccount<'info, Mint>,
-
-    #[account(
         init,
         payer = admin,
-        mint::decimals = 6,
-        mint::authority = market,
+        space = 8 + std::mem::size_of::<RequestQueue>(),
+        seeds = [REQUEST_QUEUE_SEED , &params.market_id.to_le_bytes()],
+        bump 
     )]
-    pub no_mint: InterfaceAccount<'info, Mint>,
-
-    // this is usdc mint account exist already
-    pub usdc_mint: InterfaceAccount<'info, Mint>,
-
-    #[account(
-        init ,
-        payer = admin,
-        token::mint = usdc_mint,
-        token::authority = market,
-    )]
-    pub vault_usdc: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        init,
-        payer = admin,
-        token::mint = yes_mint,
-        token::authority = market, 
-    )]
-    pub vault_yes: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        init,
-        payer = admin ,
-        token::mint = usdc_mint,
-        token::authority = market,
-    )]
-    pub vault_no: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        init,
-        payer = admin, 
-        space = 8 + std::mem::size_of::<OutcomePool>(),
-        seeds = [OUTCOME_POOL_SEED , &params.market_id.to_le_bytes()],
-        bump
-    )]
-    pub outcome_pool: Account<'info, OutcomePool>,
-
+    pub request_queue : Account<'info , RequestQueue>,
+    
     #[account(
         init, 
         payer = admin, 
         space = 8 + std::mem::size_of::<EventQueue>(),
-        seeds = [EVRNT_QUEUE_SEED , &params.market_id.to_le_bytes()],
+        seeds = [EVENT_QUEUE_SEED , &params.market_id.to_le_bytes()],
         bump
     )]
     pub event_queue: Account<'info, EventQueue>,
@@ -112,7 +60,56 @@ pub struct InitializeMarket<'info> {
     )]
     pub asks: Account<'info, Slab>,
 
-    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        init ,
+        payer = admin,
+        mint::decimals = 6,
+        mint::authority = market,
+    )]
+    pub yes_mint: Account<'info, Mint>,
+
+    #[account(
+        init,
+        payer = admin,
+        mint::decimals = 6,
+        mint::authority = market,
+    )]
+    pub no_mint: Account<'info, Mint>,
+
+    // this is usdc mint account exist already
+    pub usdc_mint: Account<'info, Mint>,
+
+    #[account(
+        init ,
+        payer = admin,
+        token::mint = usdc_mint,
+        token::authority = market,
+        seeds = [VAULT_USDC_SEED , &params.market_id.to_le_bytes()],
+        bump
+    )]
+    pub vault_usdc: Account<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin,
+        token::mint = yes_mint,
+        token::authority = market,
+        seeds = [VAULT_YES_SEED , &params.market_id.to_le_bytes()],
+        bump 
+    )]
+    pub vault_yes: Account<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin ,
+        token::mint = no_mint,
+        token::authority = market,
+        seeds = [VAULT_NO_SEED , &params.market_id.to_le_bytes()],
+        bump
+    )]
+    pub vault_no: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -120,17 +117,18 @@ pub struct InitializeMarket<'info> {
 #[repr(C)]
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
 
-pub struct InitializeMarletParams {
+pub struct InitializeMarketParams {
     pub market_id: u64,
     pub question: String,
     pub description: String,
     pub end_ts: i64,
     pub fee_bps: u16,
+    pub cranker_fee_bps: u16,
 }
 
 pub fn initial_market_handler(
     ctx: Context<InitializeMarket>,
-    params: InitializeMarletParams,
+    params: InitializeMarketParams,
 ) -> Result<()> {
     let market = &mut ctx.accounts.market;
     market.market_id = params.market_id;
@@ -143,32 +141,36 @@ pub fn initial_market_handler(
     market.bids = ctx.accounts.bids.key();
     market.yes_mint = ctx.accounts.yes_mint.key();
     market.no_mint = ctx.accounts.no_mint.key();
-    market.vault = ctx.accounts.vault.key();
     market.usdc_mint = ctx.accounts.usdc_mint.key();
     market.vault_usdc = ctx.accounts.vault_usdc.key();
     market.vault_yes = ctx.accounts.vault_yes.key();
     market.vault_no = ctx.accounts.vault_no.key();
-    market.amm_pool = ctx.accounts.outcome_pool.key();
+    market.event_queue = ctx.accounts.event_queue.key();
+    market.request_queue = ctx.accounts.request_queue.key();
     market.fee_bps = params.fee_bps;
+    market.cranker_reward_bps = params.cranker_fee_bps;
     market.q_yes = 0;
     market.q_no = 0;
     market.b_liquidity = 1_000_00; // initial liquidity constant
     market.oracle = ctx.accounts.admin.key();
     market.bump = ctx.bumps.market;
 
-    let vault = &mut ctx.accounts.vault;
-    vault.market = market.key();
-    vault.token_mint = ctx.accounts.usdc_mint.key();
-    vault.token_account = ctx.accounts.vault_usdc.key();
-    vault.token_collateral = 0;
-    vault.bump = ctx.bumps.vault;
+    //initializing request queue
+    ctx.accounts.request_queue.head = 0;
+    ctx.accounts.request_queue.count = 0;
+    ctx.accounts.request_queue.bump = ctx.bumps.request_queue;
+    
+    //initializing event queue 
+    ctx.accounts.event_queue.head = 0;
+    ctx.accounts.event_queue.count = 0;
+    ctx.accounts.event_queue.bump = ctx.bumps.event_queue;
 
-    let outcome_pool = &mut ctx.accounts.outcome_pool;
-    outcome_pool.market = market.key();
-    outcome_pool.yes_reserve = 0;
-    outcome_pool.no_reserve = 0;
-    outcome_pool.total_lp_shares = 0;
-    outcome_pool.bump = ctx.bumps.outcome_pool;
+    //initializing market slabs
+    let asks = &mut ctx.accounts.asks;
+    initialize_slab(asks, false, ctx.bumps.asks);
 
+    let bids = &mut ctx.accounts.bids;
+    initialize_slab(bids, true, ctx.bumps.bids);
+    
     Ok(())
 }
