@@ -30,7 +30,7 @@ pub fn lsmr_cost(q_yes : u128 , q_no : u128, b: u128) -> Result<u128> {
 
     let ln_sum = ln_approx(sum)?;
 
-    let cost = b.checked_mul(ln_sum).ok_or(MarketError::MathError)?.checked_div(MarketError::MathError)?;
+    let cost = b.checked_mul(ln_sum).ok_or(MarketError::MathError)?.checked_div(FP_SCALE).ok_or(MarketError::MathError)?;
 
     Ok(cost)
 }
@@ -52,20 +52,20 @@ pub fn exp_approx(x_fp:u128) -> Result<u128> {
     let x2div2 = x2.checked_div(2).ok_or(MarketError::MathError)?;
 
     let x3 = x2.checked_mul(x1).ok_or(MarketError::MathError)?.checked_div(FP_SCALE).ok_or(MarketError::MathError)?;
-    let x2div6 = x2.checked_div(6).ok_or(MarketError::MathError)?;
+    let x3div6 = x3.checked_div(6).ok_or(MarketError::MathError)?;
 
     let x4 = x3.checked_mul(x1).ok_or(MarketError::MathError)?.checked_div(FP_SCALE).ok_or(MarketError::MathError)?;
-    let x2div24 = x2.checked_div(24).ok_or(MarketError::MathError)?;
+    let x4div24 = x4.checked_div(24).ok_or(MarketError::MathError)?;
 
     let x5 = x4.checked_mul(x1).ok_or(MarketError::MathError)?.checked_div(FP_SCALE).ok_or(MarketError::MathError)?;
-    let x2div120 = x2.checked_div(120).ok_or(MarketError::MathError)?;
+    let x5div120 = x5.checked_div(120).ok_or(MarketError::MathError)?;
 
     let mut sum = one;
     sum = sum.checked_add(x1).ok_or(MarketError::MathError)?;
     sum = sum.checked_add(x2div2).ok_or(MarketError::MathError)?;
-    sum = sum.checked_add(x2div6).ok_or(MarketError::MathError)?;
-    sum = sum.checked_add(x2div24).ok_or(MarketError::MathError)?;
-    sum = sum.checked_add(x2div120).ok_or(MarketError::MathError)?;
+    sum = sum.checked_add(x3div6).ok_or(MarketError::MathError)?;
+    sum = sum.checked_add(x4div24).ok_or(MarketError::MathError)?;
+    sum = sum.checked_add(x5div120).ok_or(MarketError::MathError)?;
 
     Ok(sum)
 }
