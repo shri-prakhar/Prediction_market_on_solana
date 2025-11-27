@@ -3,7 +3,8 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
     constants::{
-        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, FEE_VAULT_USDC, MARKET_SEED, REQUEST_QUEUE_SEED, VAULT_NO_SEED, VAULT_USDC_SEED, VAULT_YES_SEED
+        ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, FEE_VAULT_USDC, MARKET_SEED, REQUEST_QUEUE_SEED,
+        VAULT_NO_SEED, VAULT_USDC_SEED, VAULT_YES_SEED,
     },
     state::{EventQueue, Market, RequestQueue, Slab},
     utils::initialize_slab,
@@ -118,7 +119,7 @@ pub struct InitializeMarket<'info> {
         seeds = [FEE_VAULT_USDC , &params.market_id.to_le_bytes()],
         bump
     )]
-    pub fee_vault_usdc : Account<'info , TokenAccount>,
+    pub fee_vault_usdc: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
