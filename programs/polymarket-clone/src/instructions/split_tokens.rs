@@ -1,53 +1,50 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token::{mint_to, transfer, MintTo, Transfer},
-    token_interface::{Mint, TokenAccount, TokenInterface},
-};
+use anchor_spl::token::{Mint, MintTo, Token, TokenAccount, Transfer, mint_to, transfer};
 
 use crate::{
-    constants::{MARKET_SEED, VAULT_SEED},
+    constants::{VAULT_YES_SEED},
     state::{Market, Vault},
 };
 
 #[derive(Accounts)]
-#[instruction(params: SpilitOrderParams)]
+#[instruction(params: SplitOrderParams)]
 pub struct SplitToken<'info> {
     #[account(signer)]
     pub trader: Signer<'info>,
 
-    #[account(mut , seeds = [MARKET_SEED , &params.market_id.to_le_bytes()] , bump)]
+    #[account(mut)]
     pub market: Account<'info, Market>,
 
     #[account(mut)]
-    pub trader_usdc: InterfaceAccount<'info, TokenAccount>,
+    pub trader_usdc: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub trader_yes: InterfaceAccount<'info, TokenAccount>,
+    pub trader_yes: Account<'info, TokenAccount>,
 
     #[account(mut)]
-    pub trader_no: InterfaceAccount<'info, TokenAccount>,
+    pub trader_no: Account<'info, TokenAccount>,
 
-    #[account(mut ,  seeds = [VAULT_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub vault: Account<'info, Vault>,
+    #[account(mut ,  seeds = [VAULT_YES_SEED , &params.market_id.to_le_bytes()] , bump)]
+    pub vault_usdc: Account<'info, Vault>,
 
-    pub yes_mint: InterfaceAccount<'info, Mint>,
-    pub no_mint: InterfaceAccount<'info, Mint>,
+    pub yes_mint: Account<'info, Mint>,
+    pub no_mint: Account<'info, Mint>,
 
-    pub token_program: Interface<'info, TokenInterface>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 
-pub struct SpilitOrderParams {
+pub struct SplitOrderParams {
     amount: u64,
     market_id: u64,
 }
 
-pub fn split_tokens_handler(ctx: Context<SplitToken>, params: SpilitOrderParams) -> Result<()> {
+pub fn split_tokens_handler(ctx: Context<SplitToken>, params: SplitOrderParams) -> Result<()> {
     let transfer_ix = Transfer {
         from: ctx.accounts.trader_usdc.to_account_info(),
-        to: ctx.accounts.vault.to_account_info(),
+        to: ctx.accounts.vault_usdc.to_account_info(),
         authority: ctx.accounts.trader.to_account_info(),
     };
 

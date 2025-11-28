@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    constants::{MARKET_SEED, VAULT_SEED},
+    constants::{MARKET_SEED, VAULT_USDC_SEED},
     state::{Market, Vault},
 };
 
@@ -15,17 +15,17 @@ pub struct MergeTokens<'info> {
     #[account(mut)]
     pub trader: Signer<'info>,
 
-    #[account(mut , seeds=[MARKET_SEED , &params.market_id.to_le_bytes()] , bump)]
+    #[account(mut)]
     pub market: Account<'info, Market>,
 
-    #[account(mut , seeds = [VAULT_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub vault: Account<'info, Vault>,
+    #[account(mut , seeds = [VAULT_USDC_SEED , &params.market_id.to_le_bytes()] , bump)]
+    pub vault_usdc: Account<'info, Vault>,
 
     #[account(mut)]
-    trader_usdc: InterfaceAccount<'info, TokenAccount>,
+    pub trader_usdc: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut)]
-    trader_yes: InterfaceAccount<'info, TokenAccount>,
+    pub trader_yes: InterfaceAccount<'info, TokenAccount>,
 
     #[account(mut)]
     pub trader_no: InterfaceAccount<'info, TokenAccount>,
@@ -45,6 +45,10 @@ pub struct MergeTokensParams {
 }
 
 pub fn merge_tokens_handler(ctx: Context<MergeTokens>, params: MergeTokensParams) -> Result<()> {
+    let market = &mut ctx.accounts.market;
+    let bump = market.bump;
+    let seed: &[&[&[u8]]] = &[&[MARKET_SEED , &market.market_id.to_be_bytes() , &[bump]]];
+
     let burn_yes = Burn {
         from: ctx.accounts.trader_yes.to_account_info(),
         mint: ctx.accounts.yes_mint.to_account_info(),
@@ -68,13 +72,13 @@ pub fn merge_tokens_handler(ctx: Context<MergeTokens>, params: MergeTokensParams
     )?;
 
     let transfer_usdc = Transfer {
-        from: ctx.accounts.vault.to_account_info(),
+        from: ctx.accounts.vault_usdc.to_account_info(),
         to: ctx.accounts.trader.to_account_info(),
-        authority: ctx.accounts.vault.to_account_info(),
+        authority: ctx.accounts.market.to_account_info(),
     };
 
     transfer(
-        CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_usdc),
+        CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), transfer_usdc , seed),
         params.amount,
     )?;
 
