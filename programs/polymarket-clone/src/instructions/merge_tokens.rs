@@ -47,7 +47,7 @@ pub struct MergeTokensParams {
 pub fn merge_tokens_handler(ctx: Context<MergeTokens>, params: MergeTokensParams) -> Result<()> {
     let market = &mut ctx.accounts.market;
     let bump = market.bump;
-    let seed: &[&[&[u8]]] = &[&[MARKET_SEED , &market.market_id.to_be_bytes() , &[bump]]];
+    let seed: &[&[&[u8]]] = &[&[MARKET_SEED, &market.market_id.to_le_bytes(), &[bump]]];
 
     let burn_yes = Burn {
         from: ctx.accounts.trader_yes.to_account_info(),
@@ -78,7 +78,11 @@ pub fn merge_tokens_handler(ctx: Context<MergeTokens>, params: MergeTokensParams
     };
 
     transfer(
-        CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), transfer_usdc , seed),
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            transfer_usdc,
+            seed,
+        ),
         params.amount,
     )?;
 

@@ -1,10 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, MintTo, Token, TokenAccount, Transfer, mint_to, transfer};
+use anchor_spl::token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer};
 
-use crate::{
-    constants::{VAULT_YES_SEED},
-    state::{Market, Vault},
-};
+use crate::{constants::VAULT_YES_SEED, state::Market};
 
 #[derive(Accounts)]
 #[instruction(params: SplitOrderParams)]
@@ -25,7 +22,7 @@ pub struct SplitToken<'info> {
     pub trader_no: Account<'info, TokenAccount>,
 
     #[account(mut ,  seeds = [VAULT_YES_SEED , &params.market_id.to_le_bytes()] , bump)]
-    pub vault_usdc: Account<'info, Vault>,
+    pub vault_usdc: Account<'info, TokenAccount>,
 
     pub yes_mint: Account<'info, Mint>,
     pub no_mint: Account<'info, Mint>,

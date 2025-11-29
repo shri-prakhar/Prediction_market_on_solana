@@ -6,6 +6,7 @@ use crate::{
         ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, FEE_VAULT_USDC, MARKET_SEED, REQUEST_QUEUE_SEED,
         VAULT_NO_SEED, VAULT_USDC_SEED, VAULT_YES_SEED,
     },
+    error::MarketError,
     state::{EventQueue, Market, RequestQueue, Slab},
     utils::initialize_slab,
 };
@@ -13,7 +14,7 @@ use crate::{
 #[derive(Accounts)]
 #[instruction(params:InitializeMarketParams)]
 
-pub struct InitializeMarket<'info> {
+pub struct InitializeMarketAccounts<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
@@ -139,9 +140,27 @@ pub struct InitializeMarketParams {
 }
 
 pub fn initial_market_handler(
-    ctx: Context<InitializeMarket>,
+    ctx: Context<InitializeMarketAccounts>,
     params: InitializeMarketParams,
 ) -> Result<()> {
+    // Validate inputs
+    require!(params.fee_bps <= 10000, MarketError::InvalidArgument);
+    require!(
+        params.cranker_fee_bps <= 10000,
+        MarketError::InvalidArgument
+    );
+    require!(
+        params.end_ts > Clock::get()?.unix_timestamp,
+        MarketError::InvalidArgument
+    );
+    require!(
+        params.question.len() <= crate::constants::MAX_MARKET_QUESTION,
+        MarketError::InvalidArgument
+    );
+    require!(
+        params.description.len() <= crate::constants::MAX_MARKET_DESC,
+        MarketError::InvalidArgument
+    );
     let market = &mut ctx.accounts.market;
     market.market_id = params.market_id;
     market.creator = ctx.accounts.admin.key();

@@ -12,7 +12,6 @@ pub enum EventType {
 
 #[repr(C)]
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
-
 pub struct Event {
     pub event_type: u8,
     pub makers_open_orders: Pubkey,
@@ -28,7 +27,6 @@ pub struct Event {
 }
 
 #[account]
-
 pub struct EventQueue {
     pub head: u64,
     pub count: u64,

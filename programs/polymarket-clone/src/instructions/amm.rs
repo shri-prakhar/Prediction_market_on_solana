@@ -59,7 +59,6 @@ pub fn lsmr_cost(q_yes: u128, q_no: u128, b: u128) -> Result<u128> {
 
 pub fn exp_approx(x_fp: u128) -> Result<u128> {
     const XMAX_FP: u128 = 20u128 * FP_SCALE;
-    const XMIN_FP: u128 = 0;
 
     let x = if x_fp > XMAX_FP { XMAX_FP } else { x_fp };
 

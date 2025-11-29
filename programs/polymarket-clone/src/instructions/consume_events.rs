@@ -1,7 +1,5 @@
-use std::arch::x86_64;
-
 use anchor_lang::prelude::*;
-use anchor_spl::{token::{Mint, MintTo, Token, TokenAccount, Transfer, mint_to, transfer}, token_interface::TokenGroupInitialize};
+use anchor_spl::token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer};
 
 use crate::{
     constants::{
@@ -48,7 +46,7 @@ pub fn consume_events_handler<'info>(
     max_events: u16,
 ) -> Result<()> {
     let event_queue = &mut ctx.accounts.event_queue;
-    let mut market = &mut ctx.accounts.market;
+    let market = &mut ctx.accounts.market;
 
     let n_events = core::cmp::min(event_queue.count as usize, max_events as usize);
 
@@ -81,7 +79,7 @@ pub fn consume_events_handler<'info>(
         remaining_index += 1;
         let taker_oo_info = &remaining_accounts[remaining_index];
         remaining_index += 1;
-        let taker_usdc_info = &remaining_accounts[remaining_index];
+        let _taker_usdc_info = &remaining_accounts[remaining_index];
         remaining_index += 1;
         let taker_outcome_info = &remaining_accounts[remaining_index];
         remaining_index += 1;
@@ -98,11 +96,10 @@ pub fn consume_events_handler<'info>(
             MarketError::NoMatchingOrder
         );
 
-        let  maker_usdc: Account<TokenAccount> = Account::try_from(&maker_usdc_info)?;
-        let  maker_outcome: Account<TokenAccount> = Account::try_from(maker_outcome_info)?; 
+        let maker_usdc: Account<TokenAccount> = Account::try_from(&maker_usdc_info)?;
+        let maker_outcome: Account<TokenAccount> = Account::try_from(maker_outcome_info)?;
         let taker_outcome: Account<TokenAccount> = Account::try_from(&taker_outcome_info)?;
-        let taker_usdc: Account<TokenAccount> = Account::try_from(taker_usdc_info)?;
-
+        //let taker_usdc: Account<TokenAccount> = Account::try_from(taker_usdc_info)?;
 
         let usdc_amount = (event.price)
             .checked_mul(event.quantity as u128)
@@ -179,7 +176,7 @@ pub fn consume_events_handler<'info>(
                         seeds,
                     );
 
-                    transfer(cpi_ctx, pay_amount)?;
+                    transfer(cpi_ctx, cranker_reward as u64)?;
                 }
 
                 if remaining_fee > 0 {
@@ -193,10 +190,10 @@ pub fn consume_events_handler<'info>(
                         seeds,
                     );
 
-                    transfer(cpi_ctx, pay_amount)?;
+                    transfer(cpi_ctx, remaining_fee as u64)?;
                 }
 
-                let mint_acc = if outcome == OutcomeSide::Yes as u8{
+                let mint_acc = if outcome == OutcomeSide::Yes as u8 {
                     &ctx.accounts.yes_mint
                 } else {
                     &ctx.accounts.no_mint
@@ -219,7 +216,7 @@ pub fn consume_events_handler<'info>(
 
                 if taker_is_buyer {
                     taker_oo.locked_quote = taker_oo
-                        .locked_base
+                        .locked_quote
                         .checked_sub(cost_u64 as u128)
                         .ok_or(MarketError::MathError)?;
                 } else {
@@ -246,9 +243,9 @@ pub fn consume_events_handler<'info>(
                 transfer(cpi_ctx, payout_amount)?;
 
                 let from_vault = if event.outcome == OutcomeSide::Yes as u8 {
-                    ctx.accounts.yes_mint.to_account_info()
+                    ctx.accounts.vault_yes.to_account_info()
                 } else {
-                    ctx.accounts.no_mint.to_account_info()
+                    ctx.accounts.vault_no.to_account_info()
                 };
 
                 let cpi_ctx = CpiContext::new_with_signer(
@@ -261,7 +258,7 @@ pub fn consume_events_handler<'info>(
                     seeds,
                 );
 
-                transfer(cpi_ctx, payout_amount)?;
+                transfer(cpi_ctx, event.quantity)?;
 
                 let cranker_usdc_account: Account<TokenAccount> =
                     Account::try_from(&cranker_usdc_account)?;
@@ -276,7 +273,7 @@ pub fn consume_events_handler<'info>(
                         seeds,
                     );
 
-                    transfer(cpi_ctx, payout_amount)?;
+                    transfer(cpi_ctx, cranker_reward as u64)?;
                 }
 
                 if remaining_fee > 0 {
@@ -290,82 +287,110 @@ pub fn consume_events_handler<'info>(
                         seeds,
                     );
 
-                    transfer(cpi_ctx, payout_amount)?;
+                    transfer(cpi_ctx, remaining_fee as u64)?;
                 }
 
-                if taker_is_buyer{
-                    taker_oo.locked_quote = taker_oo.locked_quote.checked_sub(usdc_amount as u128).ok_or(MarketError::MathError)?;
-                    maker_oo.locked_base = maker_oo.locked_base.checked_sub(event.quantity as u128).ok_or(MarketError::MathError)?;
-                }else{
-                    taker_oo.locked_base = taker_oo.locked_base.checked_sub(event.quantity as u128).ok_or(MarketError::MathError)?;
-                    maker_oo.locked_quote = maker_oo.locked_quote.checked_sub(usdc_amount as u128).ok_or(MarketError::MathError)?;
+                if taker_is_buyer {
+                    taker_oo.locked_quote = taker_oo
+                        .locked_quote
+                        .checked_sub(usdc_amount as u128)
+                        .ok_or(MarketError::MathError)?;
+                    maker_oo.locked_base = maker_oo
+                        .locked_base
+                        .checked_sub(event.quantity as u128)
+                        .ok_or(MarketError::MathError)?;
+                } else {
+                    taker_oo.locked_base = taker_oo
+                        .locked_base
+                        .checked_sub(event.quantity as u128)
+                        .ok_or(MarketError::MathError)?;
+                    maker_oo.locked_quote = maker_oo
+                        .locked_quote
+                        .checked_sub(usdc_amount as u128)
+                        .ok_or(MarketError::MathError)?;
                 }
             }
-        }else if event.event_type == EventType::Cancel as u8 {
-            let mut found_slot_index : Option<usize> = None;
-            for (slot_index , slot) in maker_oo.slots.iter().enumerate(){
+        } else if event.event_type == EventType::Cancel as u8 {
+            let mut found_slot_index: Option<usize> = None;
+            for (slot_index, slot) in maker_oo.slots.iter().enumerate() {
                 if slot.active && slot.order_id == event.order_id {
                     found_slot_index = Some(slot_index);
                     break;
                 }
-            };
+            }
             if let Some(slot_index) = found_slot_index {
                 let slot = maker_oo.slots[slot_index];
 
                 if slot.side == OrderSide::Buy as u8 {
-                    let refund_fp = (slot.price as u128).checked_mul(slot.quantity_remaining as u128).ok_or(MarketError::MathError)?;
-                    let refund_amount = refund_fp.checked_div(PRICE_PRECISION_SCALE).ok_or(MarketError::MathError)? as u64;
+                    let refund_fp = (slot.price as u128)
+                        .checked_mul(slot.quantity_remaining as u128)
+                        .ok_or(MarketError::MathError)?;
+                    let refund_amount = refund_fp
+                        .checked_div(PRICE_PRECISION_SCALE)
+                        .ok_or(MarketError::MathError)?
+                        as u64;
 
                     let cpi_ctx = CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    Transfer {
-                        from: ctx.accounts.vault_usdc.to_account_info(),
-                        to: maker_usdc.to_account_info(),
-                        authority: market.to_account_info(),
-                    },
-                    seeds,
-                );
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: ctx.accounts.vault_usdc.to_account_info(),
+                            to: maker_usdc.to_account_info(),
+                            authority: market.to_account_info(),
+                        },
+                        seeds,
+                    );
 
-                transfer(cpi_ctx, refund_amount)?;
+                    transfer(cpi_ctx, refund_amount)?;
 
-                maker_oo.locked_quote = maker_oo.locked_quote.checked_sub(refund_amount as u128).ok_or(MarketError::MathError)?;
-                maker_oo.slots[slot_index].active = false;
-                maker_oo.slots[slot_index].quantity_remaining = 0;
-
-                }else{
+                    maker_oo.locked_quote = maker_oo
+                        .locked_quote
+                        .checked_sub(refund_amount as u128)
+                        .ok_or(MarketError::MathError)?;
+                    maker_oo.slots[slot_index].active = false;
+                    maker_oo.slots[slot_index].quantity_remaining = 0;
+                } else {
                     let refund_quantity = slot.quantity_remaining;
                     let from_vault = if slot.outcome == OutcomeSide::Yes as u8 {
                         ctx.accounts.yes_mint.to_account_info()
-                    }else{
+                    } else {
                         ctx.accounts.no_mint.to_account_info()
                     };
 
                     let cpi_ctx = CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    Transfer {
-                        from: from_vault,
-                        to: maker_outcome.to_account_info(),
-                        authority: market.to_account_info(),
-                    },
-                    seeds,
-                );
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: from_vault,
+                            to: maker_outcome.to_account_info(),
+                            authority: market.to_account_info(),
+                        },
+                        seeds,
+                    );
 
-                transfer(cpi_ctx, refund_quantity)?;
+                    transfer(cpi_ctx, refund_quantity)?;
 
-                maker_oo.locked_base = maker_oo.locked_base.checked_sub(refund_quantity as u128).ok_or(MarketError::MathError)?;
-                maker_oo.slots[slot_index].active = false;
-                maker_oo.slots[slot_index].quantity_remaining = 0;
+                    maker_oo.locked_base = maker_oo
+                        .locked_base
+                        .checked_sub(refund_quantity as u128)
+                        .ok_or(MarketError::MathError)?;
+                    maker_oo.slots[slot_index].active = false;
+                    maker_oo.slots[slot_index].quantity_remaining = 0;
                 }
-            }else{
+            } else {
                 return err!(MarketError::OrderNotFound);
             }
-        }else{
+        } else {
             return err!(MarketError::InvalidArgument);
         }
     }
 
-    event_queue.head = event_queue.head.checked_add(n_events as u64).ok_or(MarketError::MathError)?;
-    event_queue.count = event_queue.count.checked_sub(n_events as u64).ok_or(MarketError::MathError)?;
+    event_queue.head = event_queue
+        .head
+        .checked_add(n_events as u64)
+        .ok_or(MarketError::MathError)?;
+    event_queue.count = event_queue
+        .count
+        .checked_sub(n_events as u64)
+        .ok_or(MarketError::MathError)?;
 
     Ok(())
 }

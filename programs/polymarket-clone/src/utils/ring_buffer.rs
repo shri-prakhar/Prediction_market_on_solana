@@ -45,7 +45,7 @@ pub fn push_event(queue: &mut EventQueue, event: Event) -> Result<()> {
         return err!(MarketError::MathError);
     }
 
-    let index = (queue.head + queue.count) as usize;
+    let index = ((queue.head + queue.count) as usize) % MAX_EVENTS;
     queue.events[index] = event;
     queue.count = queue.count.checked_add(1).ok_or(MarketError::MathError)?;
 
@@ -58,7 +58,7 @@ pub fn peek_events(queue: &EventQueue, n: usize) -> Vec<Event> {
     let read_count = core::cmp::min(n, available_events);
     let mut read_event = Vec::new();
     for i in 0..read_count {
-        let index = (queue.head as usize) + i;
+        let index = ((queue.head as usize) + i) % MAX_EVENTS;
         read_event.push(queue.events[index]);
     }
     read_event
@@ -72,7 +72,7 @@ pub fn pop_events(queue: &mut EventQueue, n: usize) -> Result<Vec<Event>> {
         .ok_or(MarketError::MathError)?;
     queue.count = queue
         .count
-        .checked_add(events.len() as u64)
+        .checked_sub(events.len() as u64)
         .ok_or(MarketError::MathError)?;
     Ok(events)
 }

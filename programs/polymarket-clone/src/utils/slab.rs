@@ -14,7 +14,7 @@ pub fn initialize_slab(slab: &mut Slab, is_bid: bool, bump: u8) {
     slab.root_price_node = -1;
     slab.bump = bump;
 
-    for i in 0..MAX_ORDER_ENTRIES {
+    for i in 0..MAX_PRICE_NODES {
         slab.price_nodes[i].occupied = false;
         slab.price_nodes[i].key = 0;
         slab.price_nodes[i].order_head = -1;
@@ -24,7 +24,7 @@ pub fn initialize_slab(slab: &mut Slab, is_bid: bool, bump: u8) {
         slab.price_nodes[i].parent = -1;
         slab.price_nodes[i].color = 0;
     }
-    for i in 0..MAX_PRICE_NODES {
+    for i in 0..MAX_ORDER_ENTRIES {
         slab.order_entries[i].occupied = false;
         slab.order_entries[i].next_in_price = -1;
         slab.order_entries[i].order_id = 0;
@@ -98,7 +98,7 @@ pub fn find_price_node_index(slab: &Slab, price: u128) -> Option<i32> {
         if current_price == price {
             return Some(current_index);
         }
-        if current_price < price {
+        if price < current_price {
             current_index = slab.price_nodes[current_index as usize].left;
         } else {
             current_index = slab.price_nodes[current_index as usize].right;
@@ -127,7 +127,7 @@ fn left_rotate(slab: &mut Slab, x: i32) {
         if x == slab.price_nodes[x_parent as usize].left {
             slab.price_nodes[x_parent as usize].left = y;
         } else {
-            slab.price_nodes[x_parent as usize].right = x;
+            slab.price_nodes[x_parent as usize].right = y;
         }
     }
 
@@ -215,11 +215,11 @@ pub fn insert_price_node_by_tree(slab: &mut Slab, price: u128) -> Result<i32> {
         return Ok(index);
     }
     let z = allocate_price_node(slab)?;
-    slab.price_nodes[z as usize].key = 1;
+    slab.price_nodes[z as usize].key = price;
     let mut y = -1;
     let mut x = slab.root_price_node;
-    while is_null(x) {
-        x = y;
+    while !is_null(x) {
+        y = x;
         if price < slab.price_nodes[x as usize].key {
             x = slab.price_nodes[x as usize].left;
         } else {
@@ -308,7 +308,7 @@ fn delete_fixup(slab: &mut Slab, mut x: i32, mut x_parent: i32) {
             if is_red(slab, sibling) {
                 set_color(slab, sibling, 0);
                 set_color(slab, x_parent, 1);
-                right_rotate(slab, sibling);
+                right_rotate(slab, x_parent);
                 sibling = slab.price_nodes[x_parent as usize].left;
             }
             if !is_null(slab.price_nodes[sibling as usize].right)
@@ -351,15 +351,15 @@ pub fn remove_price_node(slab: &mut Slab, z: i32) -> Result<()> {
 
     let mut y = z;
     let mut y_original_color = slab.price_nodes[y as usize].color;
-    let mut x: i32;
-    let mut x_parent = -1;
+    let x: i32;
+    let x_parent: i32;
 
     if is_null(slab.price_nodes[z as usize].left) {
         x = slab.price_nodes[z as usize].right;
-        x_parent = slab.price_nodes[z as usize].right;
+        x_parent = slab.price_nodes[z as usize].parent;
         transplant(slab, z, x);
-    } else if is_null(slab.price_nodes[z as usize].left) {
-        x = slab.price_nodes[z as usize].right;
+    } else if is_null(slab.price_nodes[z as usize].right) {
+        x = slab.price_nodes[z as usize].left;
         x_parent = slab.price_nodes[z as usize].parent;
         transplant(slab, z, x);
     } else {
@@ -385,7 +385,7 @@ pub fn remove_price_node(slab: &mut Slab, z: i32) -> Result<()> {
         slab.price_nodes[y as usize].left = slab.price_nodes[z as usize].left;
         if !is_null(slab.price_nodes[y as usize].left) {
             let left = slab.price_nodes[y as usize].left;
-            slab.price_nodes[left as usize].left = y;
+            slab.price_nodes[left as usize].parent = y;
         }
         slab.price_nodes[y as usize].color = slab.price_nodes[z as usize].color;
     }
@@ -459,17 +459,18 @@ pub fn find_best_price_node_index(slab: &Slab) -> Option<i32> {
     }
 
     if slab.is_bid {
+        // For bids, we want the highest price (rightmost node)
         let mut current = root;
         while slab.price_nodes[current as usize].right != -1 {
             current = slab.price_nodes[current as usize].right;
         }
         Some(current)
     } else {
+        // For asks, we want the lowest price (leftmost node)
         let mut current = root;
-        while slab.price_nodes[current as usize].right != -1 {
-            current = slab.price_nodes[current as usize].right;
+        while slab.price_nodes[current as usize].left != -1 {
+            current = slab.price_nodes[current as usize].left;
         }
-
         Some(current)
     }
 }

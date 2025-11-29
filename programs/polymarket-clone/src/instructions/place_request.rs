@@ -126,7 +126,7 @@ pub fn place_order_handler(ctx: Context<PlaceOrder>, params: PlaceOrderParams) -
 
         open_order.locked_base = open_order
             .locked_base
-            .checked_add(params.price)
+            .checked_add(params.quantity as u128)
             .ok_or(MarketError::MathError)?;
     }
 

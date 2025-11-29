@@ -4,7 +4,6 @@ use crate::constants::MAX_OPEN_ORDER_SLOTS;
 
 #[repr(C)]
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
-
 pub struct OrderSlot {
     pub active: bool,
     pub order_id: u64,
@@ -15,7 +14,6 @@ pub struct OrderSlot {
 }
 
 #[account]
-
 pub struct OpenOrder {
     pub owner: Pubkey,
     pub market: Pubkey,

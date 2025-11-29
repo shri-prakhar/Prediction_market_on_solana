@@ -54,7 +54,7 @@ pub fn settle_funds_handler(ctx: Context<SettleFunds>) -> Result<()> {
 
     transfer(cpi_ctx, amount)?;
 
-    open_order.free_base = 0;
+    open_order.free_quote = 0;
 
     Ok(())
 }

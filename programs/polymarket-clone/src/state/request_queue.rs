@@ -36,7 +36,6 @@ pub enum OutcomeSide {
 // repr(packed) is also something which is used in same context but it removes the padding and alignment
 //which makes it very specific to niches like where you know tha misalignment with not cause an issue and can lead to runtime and unexpected errors when working with various machines
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
-
 pub struct Request {
     pub request_type: u8,
     pub owner: Pubkey,

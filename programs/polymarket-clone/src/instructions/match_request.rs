@@ -4,7 +4,10 @@ use crate::{
     constants::{ASKS_SEEDS, BIDS_SEED, EVENT_QUEUE_SEED, REQUEST_QUEUE_SEED},
     error::MarketError,
     state::{Event, EventQueue, EventType, Market, OrderSide, RequestQueue, RequestType, Slab},
-    utils::{dequeue_requests, find_best_price_node_index, pop_order_from_prices, push_event},
+    utils::{
+        allocate_order_entry, append_order_to_price, dequeue_requests, find_best_price_node_index,
+        pop_order_from_prices, push_event,
+    },
 };
 
 #[derive(Accounts)]
@@ -130,6 +133,33 @@ pub fn match_order_handler(ctx: Context<MatchRequest>, max_requests: u16) -> Res
             };
 
             push_event(&mut ctx.accounts.event_queue, event)?;
+        }
+        if left_quantity > 0 {
+            // Insert unmatched order into own slab
+            let own_slab = if req.side == OrderSide::Buy as u8 {
+                &mut ctx.accounts.bids
+            } else {
+                &mut ctx.accounts.asks
+            };
+
+            let price_node_index = crate::utils::insert_price_node_by_tree(own_slab, req.price)?;
+
+            let order_entry_index = allocate_order_entry(own_slab)?;
+            let order_entry = &mut own_slab.order_entries[order_entry_index as usize];
+            order_entry.order_id = req.order_id;
+            order_entry.open_order_owner = req.open_order;
+            order_entry.quantity = left_quantity;
+            order_entry.owner_slot = 0; // TODO: Find available slot in OpenOrder
+            order_entry.reserved_amount = if req.side == OrderSide::Buy as u8 {
+                (req.price
+                    .checked_mul(left_quantity as u128)
+                    .ok_or(MarketError::MathError)?
+                    .checked_div(crate::constants::PRICE_PRECISION_SCALE)
+                    .ok_or(MarketError::MathError)?) as u64
+            } else {
+                0
+            };
+            append_order_to_price(own_slab, price_node_index, order_entry_index)?;
         }
     }
     Ok(())

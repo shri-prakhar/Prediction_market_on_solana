@@ -30,7 +30,7 @@ pub struct ClaimReward<'info> {
     token_program: Program<'info, Token>,
 }
 
-pub fn claim_reward(ctx: Context<ClaimReward>, amount: u64) -> Result<()> {
+pub fn claim_reward_handler(ctx: Context<ClaimReward>, amount: u64) -> Result<()> {
     match ctx.accounts.market.status {
         MarketStatus::ResolvedYes | MarketStatus::ResolvedNo => {}
         _ => return err!(MarketError::MarketNotOpen),
@@ -50,7 +50,7 @@ pub fn claim_reward(ctx: Context<ClaimReward>, amount: u64) -> Result<()> {
     let bump = ctx.accounts.market.bump;
     let signer_seeds: &[&[&[u8]]] = &[&[
         MARKET_SEED,
-        &ctx.accounts.market.market_id.to_be_bytes(),
+        &ctx.accounts.market.market_id.to_le_bytes(),
         &[bump],
     ]];
 
